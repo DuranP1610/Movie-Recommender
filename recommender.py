@@ -2,35 +2,47 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-df = pd.read_csv("movies.csv")
+df = None
+cosine_sim = None
+indices = None
 
-df["overview"] = df["overview"].fillna("")
 
-tfidf = TfidfVectorizer(stop_words= "english")
-tfidf_matrix = tfidf.fit_transform(df["overview"])
+def build_model():
+    global df, cosine_sim, indices
 
-cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
+    df = pd.read_csv("movies.csv")
 
-indices = pd.Series(df.index, index=df["title"]).drop_duplicates()
+    df["title"] = df["title"].str.strip().str.lower()
+    df["overview"] = df["overview"].fillna("")
+
+    # IMPORTANT: reset FIRST and clean data BEFORE anything else
+    df = df.drop_duplicates(subset="title").reset_index(drop=True)
+
+    tfidf = TfidfVectorizer(stop_words="english")
+    tfidf_matrix = tfidf.fit_transform(df["overview"])
+
+    cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
+
+    indices = pd.Series(df.index, index=df["title"])
 
 def recommend(title, top_n=10):
+    if df is None:
+        build_model()
+
+    title = title.strip().lower()
+
     if title not in indices:
-        return f"Movie '{title}' not found in dataset."
+        return df.head(0)
 
-    idx = indices[title]
+    idx = int(indices[title])
 
-    # Get similarity scores for this movie
-    sim_scores = list(enumerate(cosine_sim[idx]))
-
-    # Sort by similarity score
-    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-
-    # Top results
-    sim_scores = sim_scores[1:top_n + 1]
+    sim_scores = list(enumerate(cosine_sim[idx].ravel()))
+    sim_scores = sorted(sim_scores, key=lambda x: float(x[1]), reverse=True)
+    sim_scores = sim_scores[1:top_n+1]
 
     movie_indices = [i[0] for i in sim_scores]
 
-    return df[["title", "rating"]].iloc[movie_indices]
+    # 🔥 SAFETY GUARD (important)
+    movie_indices = [i for i in movie_indices if i < len(df)]
 
-if __name__ == "__main__":
-    print(recommend("Supergirl"))
+    return df.iloc[movie_indices][["title", "rating"]]
