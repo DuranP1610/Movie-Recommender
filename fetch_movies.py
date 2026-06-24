@@ -10,7 +10,7 @@ API_KEY = os.getenv("TMDB_API_KEY")
 Base_url = "https://api.themoviedb.org/3"
 movies = []
 
-print("API_KEY: ", API_KEY)
+
 def get_genres():
     """Fetch genre mapping (id → name)"""
     url = f"{Base_url}/genre/movie/list"
@@ -76,5 +76,5 @@ if __name__ == "__main__":
     df.to_csv("movies.csv", index=False)
 
     print("\nSaved dataset!")
-    print(df.head())
+    #print(df.head())
 
